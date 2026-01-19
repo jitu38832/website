@@ -1089,32 +1089,6 @@ app.post('/api/send-tutor-rejection', async (req, res) => {
 // WebRTC signaling endpoints
 const signalingData = new Map(); // In-memory storage for signaling data
 
-// CORS configuration for production
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Allow localhost for development
-    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-      return callback(null, true);
-    }
-    
-    // Allow production domains
-    if (origin.includes('netlify.app') || origin.includes('vercel.app') || origin.includes('herokuapp.com')) {
-      return callback(null, true);
-    }
-    
-    // Allow your specific production domain
-    if (origin.includes('breakingmaths.netlify.app')) {
-      return callback(null, true);
-    }
-    
-    callback(new Error('Not allowed by CORS'));
-  },
-  credentials: true
-};
-
 // Store signaling data
 app.post('/api/webrtc-signaling', (req, res) => {
   try {
