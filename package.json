@@ -1,0 +1,33 @@
+{
+  "name": "teachly-backend",
+  "version": "1.0.0",
+  "description": "Teachly Pro Backend Server - API for OTP, Email, and Payment processing",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop teachly-backend",
+    "pm2:restart": "pm2 restart teachly-backend"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "nodemailer": "^7.0.6",
+    "razorpay": "^2.9.6",
+    "crypto": "^1.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "keywords": [
+    "backend",
+    "api",
+    "otp",
+    "email",
+    "razorpay"
+  ],
+  "author": "Teachly Pro",
+  "license": "ISC"
+}

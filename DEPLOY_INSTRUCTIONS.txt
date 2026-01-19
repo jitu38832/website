@@ -1,0 +1,38 @@
+HOSTINGER BACKEND DEPLOYMENT - QUICK STEPS
+==========================================
+
+1. UPLOAD FILES TO HOSTINGER:
+   - Log in to Hostinger File Manager
+   - Go to public_html
+   - Create folder: "api" or "backend"
+   - Upload ALL files from this folder (except node_modules)
+
+2. INSTALL DEPENDENCIES:
+   - Via SSH: cd public_html/api && npm install --production
+   - OR via Hostinger Node.js manager: Click "Install Dependencies"
+
+3. CREATE NODE.JS APP:
+   - Go to Advanced → Node.js
+   - Create new app
+   - App Root: /public_html/api
+   - Startup File: server.js
+   - Port: (Note the port assigned by Hostinger)
+
+4. START SERVER:
+   - Click "Start" in Node.js manager
+   - OR via SSH: node server.js
+
+5. CONFIGURE REVERSE PROXY:
+   - Edit public_html/.htaccess
+   - Add: ProxyPass /api http://localhost:PORT/api
+   - Replace PORT with actual port from step 3
+
+6. TEST:
+   - Visit: https://teachlypro.com/api/health
+   - Should return JSON with "status":"healthy"
+
+7. UPDATE FRONTEND:
+   - Rebuild: npm run build:hostinger
+   - Upload build folder to public_html
+
+See HOSTINGER_BACKEND_DEPLOYMENT.md for detailed instructions!
