@@ -219,11 +219,12 @@ app.post('/api/send-otp', async (req, res) => {
     console.log(`📧 Stored NEW OTP for ${normalizedEmail}: ${otp} at ${new Date().toISOString()}`);
     console.log(`⏰ OTP will expire at ${new Date(Date.now() + 10 * 60 * 1000).toISOString()}`);
 
-    // Email content
+    // Email content (both text and HTML for better delivery)
     const mailOptions = {
-      from: 'teachlypro720@gmail.com',
+      from: '"Teachly Pro" <teachlypro720@gmail.com>',
       to: email,
       subject: "Your OTP for Teachly Pro",
+      text: `Your OTP for Teachly Pro account verification is: ${otp}\n\nThis OTP will expire in 10 minutes.\n\nIf you didn't request this OTP, please ignore this email.\n\nBest regards,\nTeachly Pro Team`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background-color: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
@@ -255,34 +256,44 @@ app.post('/api/send-otp', async (req, res) => {
       to: email // Use original email for sending
     };
     
-    // Send email asynchronously (don't wait for it)
-    sendEmailWithFallback(mailOptionsWithOriginalEmail)
-      .then(result => {
-        if (result.success) {
-          console.log(`✅ OTP email sent to ${email}: ${otp} via ${result.service}`);
-          if (result.messageId) {
-            console.log(`📧 Email message ID: ${result.messageId}`);
-          }
-        } else {
-          console.error(`❌ OTP email FAILED to send to ${email}`);
-          console.error(`   Error: ${result.error}`);
-          console.error(`   Code: ${result.code || 'N/A'}`);
-          console.log(`📧 OTP for ${normalizedEmail}: ${otp} (available in response)`);
+    // Try to send email (with timeout to avoid blocking too long)
+    let emailResult = null;
+    try {
+      const emailPromise = sendEmailWithFallback(mailOptionsWithOriginalEmail);
+      const timeoutPromise = new Promise((resolve) => 
+        setTimeout(() => resolve({ success: false, error: 'Email sending timeout - continuing anyway', timeout: true }), 8000)
+      );
+      
+      emailResult = await Promise.race([emailPromise, timeoutPromise]);
+      
+      if (emailResult.success && !emailResult.timeout) {
+        console.log(`✅ OTP email sent to ${email}: ${otp} via ${emailResult.service}`);
+        if (emailResult.messageId) {
+          console.log(`📧 Email message ID: ${emailResult.messageId}`);
         }
-      })
-      .catch(emailError => {
-        console.error(`❌ Email sending exception for ${email}:`);
-        console.error(`   Error: ${emailError.message}`);
-        console.error(`   Stack: ${emailError.stack}`);
+      } else if (emailResult.timeout) {
+        console.warn(`⏱️ Email sending timed out after 8 seconds for ${email}, but OTP is available in response`);
+        // Continue - email might still send in background
+      } else {
+        console.error(`❌ OTP email FAILED to send to ${email}`);
+        console.error(`   Error: ${emailResult.error}`);
+        console.error(`   Code: ${emailResult.code || 'N/A'}`);
         console.log(`📧 OTP for ${normalizedEmail}: ${otp} (available in response)`);
-      });
+      }
+    } catch (emailError) {
+      console.error(`❌ Email sending exception for ${email}:`);
+      console.error(`   Error: ${emailError.message}`);
+      console.error(`   Stack: ${emailError.stack}`);
+      console.log(`📧 OTP for ${normalizedEmail}: ${otp} (available in response)`);
+    }
     
-    // Return response immediately (email sending in background)
+    // Return response (OTP is always available)
     res.json({ 
       success: true, 
       message: 'OTP sent successfully', 
       otp: otp, // Always return OTP for client-side verification
-      service: 'processing' // Email is being sent in background
+      emailSent: emailResult?.success || false, // Indicate if email was actually sent
+      service: emailResult?.service || 'processing'
     });
     
   } catch (error) {
