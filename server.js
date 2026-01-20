@@ -81,7 +81,7 @@ const emailConfigs = [
   }
 ];
 
-// Create transporters
+// Create transporters (timeouts are set in config above)
 const transporters = emailConfigs.map(config => ({
   name: config.name,
   transporter: nodemailer.createTransport(config.config)
@@ -90,25 +90,27 @@ const transporters = emailConfigs.map(config => ({
 // OTP storage
 const otpStorage = new Map();
 
-// Enhanced email sending with fallback
+// Enhanced email sending - optimized for speed (only use first transporter)
 async function sendEmailWithFallback(mailOptions, retryCount = 0) {
-  for (let i = 0; i < transporters.length; i++) {
-    try {
-      const { name, transporter } = transporters[i];
-      console.log(`📧 Attempting to send email via ${name}...`);
-      
-      await transporter.sendMail(mailOptions);
-      console.log(`✅ Email sent successfully via ${name}`);
-      return { success: true, service: name };
-    } catch (error) {
-      console.log(`❌ Failed to send via ${name}: ${error.message}`);
-      
-      // If this is the last transporter and we've tried all, throw error
-      if (i === transporters.length - 1) {
-        throw error; 
-      }
-    }
-  } 
+  // Only use first transporter for speed (no fallback loop)
+  try {
+    const { name, transporter } = transporters[0];
+    console.log(`📧 Sending email via ${name}...`);
+    
+    // Use shorter timeout (10 seconds) for faster failure handling
+    const sendPromise = transporter.sendMail(mailOptions);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Email sending timeout')), 10000)
+    );
+    
+    await Promise.race([sendPromise, timeoutPromise]);
+    console.log(`✅ Email sent successfully via ${name}`);
+    return { success: true, service: name };
+  } catch (error) {
+    console.log(`⚠️  Email sending failed: ${error.message}`);
+    // Don't throw - email failure shouldn't break flow (OTP already returned)
+    return { success: false, service: 'failed', error: error.message };
+  }
 }
 
 // Health check endpoint
@@ -206,36 +208,30 @@ app.post('/api/send-otp', async (req, res) => {
       `
     };
 
-    // Try to send email with fallback (use original email for sending, normalized for storage)
-    try {
+    // Return response IMMEDIATELY (before any async operations)
+    res.json({ 
+      success: true, 
+      message: 'OTP sent successfully', 
+      otp: otp, // Always return OTP for client-side verification
+      service: 'processing' // Email is being sent in background
+    });
+    
+    // Send email asynchronously AFTER response is sent (truly fire and forget)
+    setImmediate(() => {
       const mailOptionsWithOriginalEmail = {
         ...mailOptions,
         to: email // Use original email for sending
       };
-      const result = await sendEmailWithFallback(mailOptionsWithOriginalEmail);
-      console.log(`✅ OTP sent to ${email}: ${otp} via ${result.service}`);
       
-      // Always return OTP so client can verify locally even if server restarts
-      res.json({ 
-        success: true, 
-        message: 'OTP sent successfully', 
-        otp: otp, // Always return OTP for client-side verification
-        service: result.service
-      });
-    } catch (emailError) {
-      console.log(`⚠️  All email services failed: ${emailError.message}`);
-      console.log(`📧 OTP for ${normalizedEmail}: ${otp}`);
-      console.log(`🔍 Please check your email manually or use the OTP above for testing`);
-      
-      // Still return success but with fallback OTP - always return OTP when email fails
-      console.log(`📧 Email failed, but OTP is available: ${otp}`);
-      res.json({ 
-        success: true, 
-        message: 'OTP generated (email service temporarily unavailable). Check console for OTP.', 
-        otp: otp, // Always return OTP when email fails
-        fallback: true
-      });
-    }
+      sendEmailWithFallback(mailOptionsWithOriginalEmail)
+        .then(result => {
+          console.log(`✅ OTP email sent to ${email}: ${otp} via ${result.service}`);
+        })
+        .catch(emailError => {
+          console.log(`⚠️  Email sending failed for ${email}: ${emailError.message}`);
+          console.log(`📧 OTP for ${normalizedEmail}: ${otp} (available in response)`);
+        });
+    });
     
   } catch (error) {
     console.error('Error sending OTP:', error);
