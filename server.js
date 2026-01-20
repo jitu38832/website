@@ -55,7 +55,7 @@ const emailConfigs = [
       service: 'gmail',
       auth: {
         user: 'teachlypro720@gmail.com',
-        pass: 'koep qfyv mnzz scgz'
+        pass: 'rinl gchq qqnk xxvu'
       }
     }
   },
@@ -65,7 +65,7 @@ const emailConfigs = [
       service: 'gmail',
       auth: {
         user: 'teachlypro720@gmail.com',
-        pass: 'koep qfyv mnzz scgz'
+        pass: 'rinl gchq qqnk xxvu'
       }
     }
   },
