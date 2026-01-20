@@ -95,7 +95,7 @@ async function sendEmailWithFallback(mailOptions, retryCount = 0) {
   // Only use first transporter for speed (no fallback loop)
   try {
     const { name, transporter } = transporters[0];
-    console.log(`📧 Sending email via ${name}...`);
+    console.log(`📧 Sending email via ${name} to ${mailOptions.to}...`);
     
     // Use shorter timeout (10 seconds) for faster failure handling
     const sendPromise = transporter.sendMail(mailOptions);
@@ -103,13 +103,18 @@ async function sendEmailWithFallback(mailOptions, retryCount = 0) {
       setTimeout(() => reject(new Error('Email sending timeout')), 10000)
     );
     
-    await Promise.race([sendPromise, timeoutPromise]);
-    console.log(`✅ Email sent successfully via ${name}`);
-    return { success: true, service: name };
+    const result = await Promise.race([sendPromise, timeoutPromise]);
+    console.log(`✅ Email sent successfully via ${name} to ${mailOptions.to}`);
+    console.log(`📧 Email result:`, result.messageId || 'No message ID');
+    return { success: true, service: name, messageId: result.messageId };
   } catch (error) {
-    console.log(`⚠️  Email sending failed: ${error.message}`);
+    console.error(`❌ Email sending failed to ${mailOptions.to}:`);
+    console.error(`   Error message: ${error.message}`);
+    console.error(`   Error code: ${error.code || 'N/A'}`);
+    console.error(`   Error response: ${error.response || 'N/A'}`);
+    console.error(`   Full error:`, error);
     // Don't throw - email failure shouldn't break flow (OTP already returned)
-    return { success: false, service: 'failed', error: error.message };
+    return { success: false, service: 'failed', error: error.message, code: error.code };
   }
 }
 
@@ -225,10 +230,22 @@ app.post('/api/send-otp', async (req, res) => {
       
       sendEmailWithFallback(mailOptionsWithOriginalEmail)
         .then(result => {
-          console.log(`✅ OTP email sent to ${email}: ${otp} via ${result.service}`);
+          if (result.success) {
+            console.log(`✅ OTP email sent to ${email}: ${otp} via ${result.service}`);
+            if (result.messageId) {
+              console.log(`📧 Email message ID: ${result.messageId}`);
+            }
+          } else {
+            console.error(`❌ OTP email FAILED to send to ${email}`);
+            console.error(`   Error: ${result.error}`);
+            console.error(`   Code: ${result.code || 'N/A'}`);
+            console.log(`📧 OTP for ${normalizedEmail}: ${otp} (available in response)`);
+          }
         })
         .catch(emailError => {
-          console.log(`⚠️  Email sending failed for ${email}: ${emailError.message}`);
+          console.error(`❌ Email sending exception for ${email}:`);
+          console.error(`   Error: ${emailError.message}`);
+          console.error(`   Stack: ${emailError.stack}`);
           console.log(`📧 OTP for ${normalizedEmail}: ${otp} (available in response)`);
         });
     });
