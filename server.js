@@ -250,51 +250,37 @@ app.post('/api/send-otp', async (req, res) => {
       `
     };
 
-    // Prepare email options
-    const mailOptionsWithOriginalEmail = {
-      ...mailOptions,
-      to: email // Use original email for sending
-    };
-    
-    // Try to send email (with timeout to avoid blocking too long)
-    let emailResult = null;
-    try {
-      const emailPromise = sendEmailWithFallback(mailOptionsWithOriginalEmail);
-      const timeoutPromise = new Promise((resolve) => 
-        setTimeout(() => resolve({ success: false, error: 'Email sending timeout - continuing anyway', timeout: true }), 8000)
-      );
-      
-      emailResult = await Promise.race([emailPromise, timeoutPromise]);
-      
-      if (emailResult.success && !emailResult.timeout) {
-        console.log(`✅ OTP email sent to ${email}: ${otp} via ${emailResult.service}`);
-        if (emailResult.messageId) {
-          console.log(`📧 Email message ID: ${emailResult.messageId}`);
-        }
-      } else if (emailResult.timeout) {
-        console.warn(`⏱️ Email sending timed out after 8 seconds for ${email}, but OTP is available in response`);
-        // Continue - email might still send in background
-      } else {
-        console.error(`❌ OTP email FAILED to send to ${email}`);
-        console.error(`   Error: ${emailResult.error}`);
-        console.error(`   Code: ${emailResult.code || 'N/A'}`);
-        console.log(`📧 OTP for ${normalizedEmail}: ${otp} (available in response)`);
-      }
-    } catch (emailError) {
-      console.error(`❌ Email sending exception for ${email}:`);
-      console.error(`   Error: ${emailError.message}`);
-      console.error(`   Stack: ${emailError.stack}`);
-      console.log(`📧 OTP for ${normalizedEmail}: ${otp} (available in response)`);
-    }
-    
-    // Return response (OTP is always available)
+    // Return response IMMEDIATELY with OTP (email sending happens in background)
     res.json({ 
       success: true, 
-      message: 'OTP sent successfully', 
-      otp: otp, // Always return OTP for client-side verification
-      emailSent: emailResult?.success || false, // Indicate if email was actually sent
-      service: emailResult?.service || 'processing'
+      message: 'OTP generated successfully', 
+      otp: otp // OTP is always returned so users can enter it directly
     });
+    
+    // Send email in background (don't wait for it)
+    const mailOptionsWithOriginalEmail = {
+      ...mailOptions,
+      to: email
+    };
+    
+    sendEmailWithFallback(mailOptionsWithOriginalEmail)
+      .then(result => {
+        if (result.success) {
+          console.log(`✅ OTP email sent to ${email}: ${otp} via ${result.service}`);
+          if (result.messageId) {
+            console.log(`📧 Email message ID: ${result.messageId}`);
+          }
+        } else {
+          console.error(`❌ OTP email FAILED to send to ${email}`);
+          console.error(`   Error: ${result.error}`);
+          console.error(`   Code: ${result.code || 'N/A'}`);
+        }
+      })
+      .catch(emailError => {
+        console.error(`❌ Email sending exception for ${email}:`);
+        console.error(`   Error: ${emailError.message}`);
+        console.error(`   Stack: ${emailError.stack}`);
+      });
     
   } catch (error) {
     console.error('Error sending OTP:', error);
