@@ -38,8 +38,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Razorpay Configuration
 // TODO: Replace with your actual Razorpay credentials from Razorpay Dashboard
 // Get these from: https://dashboard.razorpay.com/app/keys
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_RtwwIU8GvZEOnq';
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '9F1zU9AJaDAIlxL1MFIb984E';
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_live_S6FEvDJSxvI5q3';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'wJQfjmta5VNSMhbPnJ8Ls8XB';
 
 // Initialize Razorpay instance
 const razorpay = new Razorpay({
@@ -55,7 +55,7 @@ const emailConfigs = [
       service: 'gmail',
       auth: {
         user: 'teachlypro720@gmail.com',
-        pass: 'rinl gchq qqnk xxvu'
+        pass: 'koep qfyv mnzz scgz'
       }
     }
   },
@@ -65,7 +65,7 @@ const emailConfigs = [
       service: 'gmail',
       auth: {
         user: 'teachlypro720@gmail.com',
-        pass: 'rinl gchq qqnk xxvu'
+        pass: 'koep qfyv mnzz scgz'
       }
     }
   },
